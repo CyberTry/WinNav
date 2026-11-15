@@ -1,0 +1,18 @@
+{
+  "name": "winnav",
+  "version": "0.2.0",
+  "private": true,
+  "description": "WinNav · 自托管的服务导航站（Windows / Node.js）",
+  "main": "src/server.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "node test/probe.test.js && node test/auth.test.js && node test/api.test.js"
+  },
+  "dependencies": {
+    "express": "^5.1.0"
+  }
+}

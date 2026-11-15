@@ -11,7 +11,8 @@
     state: '/api/state',
     refresh: '/api/state/refresh',
     status: '/api/status',
-    events: '/api/events'
+    events: '/api/events',
+    favicon: '/api/favicon/'
   };
 
   var state = {
@@ -181,21 +182,51 @@
   }
 
   /* ================= 卡片 ================= */
+  // 未设置图标时：在线模式由服务端代理抓取 favicon，预览模式直接猜 origin/favicon.ico
+  function faviconSrc(svc) {
+    if (state.online) return API.favicon + encodeURIComponent(svc.id);
+    var url = normalizeUrl(svc.url);
+    if (!url.href) return '';
+    try {
+      return new URL(url.href).origin + '/favicon.ico';
+    } catch (e) {
+      return '';
+    }
+  }
+
   function iconNode(svc) {
     var box = el('div', 'icon');
     var icon = svc.icon || '';
+    var fallback = function () {
+      box.replaceChildren(document.createTextNode(svc.name.slice(0, 1).toUpperCase()));
+    };
+
     if (/^https?:\/\//i.test(icon) || icon.indexOf('/icons/') === 0) {
       var img = document.createElement('img');
       img.src = icon;
       img.alt = '';
       img.loading = 'lazy';
-      img.addEventListener('error', function () {
-        box.replaceChildren(document.createTextNode(svc.name.slice(0, 1).toUpperCase()));
-      });
+      img.addEventListener('error', fallback);
       box.appendChild(img);
-    } else {
-      box.textContent = icon || svc.name.slice(0, 1).toUpperCase();
+      return box;
     }
+
+    if (!icon.trim()) {
+      var src = faviconSrc(svc);
+      if (src) {
+        box.classList.add('auto-icon');
+        var favImg = document.createElement('img');
+        favImg.src = src;
+        favImg.alt = '';
+        favImg.loading = 'lazy';
+        favImg.referrerPolicy = 'no-referrer';
+        favImg.addEventListener('error', fallback);
+        box.appendChild(favImg);
+        return box;
+      }
+    }
+
+    box.textContent = icon || svc.name.slice(0, 1).toUpperCase();
     return box;
   }
 
@@ -366,9 +397,9 @@
     }
 
     api(API.refresh, { method: 'POST' }).then(function () {
-      if (!state.es) pollStatus(0);
-    }).catch(function (err) {
-      if (err && err.status === 401) { /* 刷新无需登录，忽略 */ }
+      // 兜底：SSE 尚未连上或事件丢失时，2.5 s 后改走轮询
+      setTimeout(function () { if (state.refreshing) pollStatus(0); }, 2500);
+    }).catch(function () {
       simulateRefresh();
     });
   }

@@ -264,6 +264,41 @@ WinNav 是一个可自托管的「服务导航站」服务端软件，运行在 
 - 搜索框输入即时过滤，斜杠键聚焦、Esc 清空；分组折叠状态刷新后保持。
 - 窗口宽度 760 px 以下顶栏换行，640 px 以下卡片单列。
 
+### 6.5 后端服务（已交付）
+
+后端基于 Node.js 20+ 与 Express 5，单进程运行，零原生编译依赖。核心模块与职责：
+
+| 模块 | 职责 |
+| --- | --- |
+| `src/config.js` | 读取 `.env`、默认值、数据路径、各类上限 |
+| `src/logger.js` | 控制台 + `data/logs/app-YYYY-MM-DD.log` 双写，按级别过滤 |
+| `src/errors.js` | `AppError` 与统一错误码，`asyncHandler` 包装异步路由 |
+| `src/url.js` | 地址归一化（补全协议 / 端口推导 / 展示格式） |
+| `src/store.js` | `nav.json` 读写：schema 校验、`.bak` 回退、临时文件 + fsync + rename 原子写、串行写队列 |
+| `src/users.js` | `users.json`：默认账号、scrypt 加盐哈希、改用户名 / 口令、`tokenVersion` 踢会话 |
+| `src/auth.js` | 会话表、Cookie 下发、`requireAdmin`、登录限速（5 次 / 分钟、10 次锁 10 分钟）、测试连接配额 |
+| `src/probe.js` | TCP / HTTP / ICMP 探测、DNS 预检、in-flight 去重、TTL 缓存、并发池 |
+| `src/hub.js` | SSE 客户端集合与广播 |
+| `src/status.js` | 全量刷新编排（合并并发请求）、逐条推送、可选定时探测 |
+| `src/app.js` | 中间件装配：JSON 解析、访问日志、CSRF 同源校验、静态资源、统一错误响应 |
+| `src/server.js` | 启动、端口占用提示、默认口令告警、优雅退出 |
+
+**已实现并验证的行为**
+
+- 匿名只读：`GET /api/state`、`/api/status`、`/api/events` 不需要登录。
+- 写接口全部经 `requireAdmin`：未登录一律 401 `UNAUTHORIZED`。
+- 登录：`scrypt` 校验 + `timingSafeEqual`；账号不存在时执行等价计算防枚举；成功后重建 `sid`、登录即踢掉同账号旧会话。
+- 改凭据：校验当前口令、用户名格式与唯一性、新口令 6~64 位且不得与当前相同；成功后 `tokenVersion++`，其他会话立即失效。
+- 探测：TCP 优先，`httpCheck` 为真时追加 HEAD 请求记录状态码；HTTP 模式以任意响应码为在线；ICMP 调用系统 `ping`。
+- 刷新：`POST /api/state/refresh` 进行中再次调用返回 `coalesced: true`，不重复探测；每完成一个服务推送一条 SSE `status`。
+- 部署：`/admin` 与 `/admin.html` 均可用，静态资源由 Express 直接托管，无跨域问题。
+
+**验证结果**
+
+- `npm test`：probe 12 项、auth 11 项、api 10 项，共 33 项全部通过。
+- 端到端脚本：50 项断言全部通过（覆盖权限拦截、CRUD、探测、SSE、改凭据、会话失效、导出导入）。
+- 实际探测：本机服务 `online 2~5 ms`，关闭端口 `ECONNREFUSED`，不存在域名 `ENOTFOUND`，不可路由地址 `ETIMEDOUT`，均在预期内。
+
 ---
 
 ## 7. 技术方案
@@ -304,47 +339,53 @@ WinNav 是一个可自托管的「服务导航站」服务端软件，运行在 
 
 ```text
 WinNav/
-├─ package.json
+├─ package.json              # 仅依赖 express
+├─ package-lock.json
 ├─ README.md                 # 本文档
-├─ .env.example              # PORT / HOST / ADMIN_PASSWORD / DATA_DIR
+├─ .env.example              # PORT / HOST / ADMIN_PASSWORD / DATA_DIR / SESSION_TTL_MS / RESET_ADMIN
+├─ .gitignore
 ├─ src/
-│  ├─ server.js              # 入口：读取配置、启动 HTTP、优雅退出
-│  ├─ app.js                 # Express 装配：中间件、路由、静态资源
-│  ├─ config.js              # 环境变量与默认值
-│  ├─ store.js               # JSON 读写、原子保存、备份、schema 校验
-│  ├─ users.js               # 账号库：默认 admin/123456、口令哈希、凭据修改
-│  ├─ auth.js                # 会话签发、requireAdmin 中间件、登录限速
-│  ├─ probe.js               # 地址解析、TCP/HTTP/ICMP 探测、并发队列、缓存
-│  ├─ routes/
-│  │  ├─ state.js            # GET /api/state, POST /api/state/refresh
-│  │  ├─ events.js           # GET /api/events（SSE）
-│  │  ├─ services.js         # 服务 CRUD 与排序（写：管理员）
-│  │  ├─ groups.js           # 分组 CRUD 与排序（写：管理员）
-│  │  ├─ account.js          # 登录 / 登出 / 当前账号 / 改用户名 / 改口令
-│  │  └─ admin.js            # 测试连接 / 导入导出
-│  └─ utils/                 # 校验、错误类型、日志
+│  ├─ server.js              # 入口：初始化存储与账号、启动 HTTP、优雅退出
+│  ├─ app.js                 # Express 装配：访问日志、CSRF 校验、静态资源、错误处理
+│  ├─ config.js              # .env 解析、默认值、路径、上限
+│  ├─ logger.js              # 控制台 + 按天日志文件
+│  ├─ errors.js              # AppError / E 错误工厂 / asyncHandler
+│  ├─ url.js                 # 地址归一化与目标解析
+│  ├─ store.js               # nav.json：schema 校验、原子写、.bak 回退、串行写队列
+│  ├─ users.js               # users.json：默认账号、scrypt 哈希、凭据修改
+│  ├─ auth.js                # 会话表、Cookie、requireAdmin、登录限速
+│  ├─ probe.js               # TCP / HTTP / ICMP 探测、并发池、TTL 缓存、in-flight 去重
+│  ├─ hub.js                 # SSE 客户端管理与广播
+│  ├─ status.js              # 全量刷新编排、逐条推送、定时探测
+│  └─ routes/
+│     ├─ state.js            # GET /state, POST /state/refresh, GET /status, PATCH /settings
+│     ├─ events.js           # GET /events（SSE，25 s 心跳）
+│     ├─ services.js         # 服务 CRUD 与排序
+│     ├─ groups.js           # 分组 CRUD 与排序
+│     └─ account.js          # login / logout / account / probe/test / export / import
 ├─ public/                   # 静态前端（已交付）
 │  ├─ index.html             # 首页 / 普通用户视图
 │  ├─ admin.html             # 管理台（登录 / CRUD / 账号设置）
 │  ├─ css/style.css          # 渐变玻璃拟态基础样式
 │  ├─ css/admin.css          # 管理台样式
-│  ├─ js/app.js              # 首页逻辑（API / SSE / 预览降级）
+│  ├─ js/app.js              # 首页逻辑（API / SSE / 轮询兜底 / 预览降级）
 │  ├─ js/admin.js            # 管理台逻辑
 │  ├─ js/mock-data.js        # 静态预览示例数据
 │  └─ icons/                 # 本地图标
-├─ data/
-│  ├─ nav.json               # 运行时生成
+├─ data/                     # 运行时生成，不入版本库
+│  ├─ nav.json
 │  ├─ nav.json.bak
-│  ├─ users.json             # 账号库（含 scrypt 哈希与盐）
+│  ├─ users.json
 │  ├─ users.json.bak
-│  └─ logs/
+│  └─ logs/app-YYYY-MM-DD.log
 ├─ scripts/
-│  ├─ install-service.ps1
-│  └─ uninstall-service.ps1
+│  ├─ install-service.ps1    # NSSM 注册为 Windows 服务
+│  ├─ uninstall-service.ps1
+│  └─ open-firewall.ps1
 └─ test/
-   ├─ probe.test.js
-   ├─ auth.test.js
-   └─ api.test.js
+   ├─ probe.test.js          # 探测引擎单测（12 项）
+   ├─ auth.test.js           # 账号与哈希单测（11 项）
+   └─ api.test.js            # HTTP 接口集成测试（10 项）
 ```
 
 ---
@@ -461,8 +502,8 @@ WinNav/
 
 | 方法 | 路径 | 鉴权 | 说明 |
 | --- | --- | --- | --- |
-| GET | `/api/health` | 无 | `{ status, uptime, version, services }` |
-| GET | `/api/state` | 无 | 配置 + 全部缓存状态 + `viewer: { authenticated, username?, mustChangePassword }` |
+| GET | `/api/health` | 无 | `{ status, uptimeSec, version, services, groups, sseClients, refreshing, lastRefresh, sessions }` |
+| GET | `/api/state` | 无 | 配置 + 全部缓存状态 + `viewer: { authenticated, username?, role?, mustChangePassword }` |
 | POST | `/api/state/refresh` | 无 | 触发全量刷新；重入返回 `{ coalesced: true }` |
 | GET | `/api/status` | 无 | 仅状态快照 + `refreshing` 标志（轮询降级用） |
 | GET | `/api/events` | 无 | SSE：`status` / `refresh:start` / `refresh:done` / `config:changed` / `ping`（25 s 心跳） |
@@ -473,7 +514,7 @@ WinNav/
 | GET | `/api/groups` | 无 | 分组列表 |
 | POST | `/api/groups` | 管理员 | 创建分组 |
 | PATCH | `/api/groups/:id` | 管理员 | 重命名等更新 |
-| DELETE | `/api/groups/:id` | 管理员 | 删除分组（需指定卡片去向：`moveTo` 或 `cascade`） |
+| DELETE | `/api/groups/:id` | 管理员 | 删除分组；组内仍有服务或仅剩一个分组时返回 409 |
 | PUT | `/api/groups/order` | 管理员 | `{ ids: [...] }` |
 | GET | `/api/services` | 无 | 服务列表 |
 | POST | `/api/services` | 管理员 | 创建服务 |
@@ -482,7 +523,21 @@ WinNav/
 | PUT | `/api/services/order` | 管理员 | `{ groupId, ids: [...] }` |
 | POST | `/api/probe/test` | 管理员 | `{ url }` → 单次探测结果，限速 10 次 / 分钟 |
 | GET | `/api/export` | 管理员 | 下载配置 JSON |
-| POST | `/api/import` | 管理员 | 上传并校验后整体覆盖 |
+| POST | `/api/import` | 管理员 | 上传并校验后整体覆盖（至少保留一个分组） |
+| PATCH | `/api/settings` | 管理员 | 站点标题、主题与探测参数（超时 / 并发 / 缓存 / 定时） |
+
+**错误码**
+
+| code | HTTP | 含义 |
+| --- | --- | --- |
+| `INVALID_INPUT` | 400 | 字段校验失败（名称、地址、长度等） |
+| `INVALID_CREDENTIALS` | 401 | 用户名或口令错误 |
+| `UNAUTHORIZED` | 401 | 未登录或会话过期 |
+| `FORBIDDEN` / `CSRF_BLOCKED` | 403 | 来源不可信或权限不足 |
+| `NOT_FOUND` | 404 | 服务 / 分组不存在 |
+| `CONFLICT` | 409 | 重名分组、非空分组不可删除 |
+| `TOO_MANY_ATTEMPTS` / `TOO_MANY_REQUESTS` | 429 | 登录失败过多 / 测试连接过于频繁 |
+| `INTERNAL_ERROR` | 500 | 未预期异常（响应不暴露堆栈） |
 
 > 鉴权列含义：「无」= 匿名可访问；「管理员」= 必须携带有效会话，否则 401。所有写接口在进入业务逻辑前先过 `requireAdmin`。
 
@@ -620,9 +675,9 @@ async function refreshAll() {
 
 ```powershell
 cd E:\path\to\WinNav
-npm install
+npm install                        # 仅需 express，无原生编译
 Copy-Item .env.example .env        # 按需修改 PORT / ADMIN_PASSWORD
-npm start                           # http://127.0.0.1:8080
+npm start                          # http://127.0.0.1:8080
 ```
 
 `.env.example`
@@ -630,42 +685,69 @@ npm start                           # http://127.0.0.1:8080
 ```ini
 PORT=8080
 HOST=0.0.0.0
-# 仅首次初始化 users.json 时生效；不填则使用默认口令 123456
-ADMIN_PASSWORD=
 DATA_DIR=./data
 LOG_LEVEL=info
+
+# 仅首次初始化 users.json 时生效；留空则使用默认口令 123456
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=
+
+# 会话有效期（毫秒），默认 12 小时
+SESSION_TTL_MS=43200000
+
+# 设为 1 时，下次启动强制把管理员重置为 admin / 123456（口令丢失时救急）
+RESET_ADMIN=0
 ```
 
 首次启动会在控制台打印：
 
 ```text
-[WinNav] 已创建默认管理员：admin / 123456
-[WinNav] 请登录 http://127.0.0.1:8080/admin 后立即修改口令
+2026-11-15T08:17:14Z INFO  未找到配置文件，已创建默认配置
+2026-11-15T08:17:15Z INFO  WinNav 已启动 {"url":"http://127.0.0.1:8080",...}
+2026-11-15T08:17:15Z WARN  已创建默认管理员账号 {"username":"admin","password":"123456"}
+2026-11-15T08:17:15Z WARN  管理员仍在使用默认口令，请登录 /admin 后立即修改
 ```
 
-### 12.2.1 只看前端（当前已可运行）
+### 12.2.1 三种启动方式与运行模式
 
-后端尚未实现时，可直接预览已交付的静态页面：
+| 方式 | 命令 | 说明 |
+| --- | --- | --- |
+| 正式运行 | `npm start` | 启动后端，页面从 `/api/*` 取真实数据 |
+| 开发热重载 | `npm run dev` | `node --watch`，改文件自动重启 |
+| 纯前端预览 | 双击 `public/index.html` | 无后端，自动进入预览模式，数据存 localStorage |
+| 测试 | `npm test` | 运行 probe / auth / api 三组测试 |
 
-```powershell
-# 方式一：直接双击打开（file: 协议，自动进入静态预览模式）
-Start-Process .\public\index.html
-Start-Process .\public\admin.html
+前端会探测 `GET /api/state`：成功即进入在线模式并使用会话 Cookie；失败则退回示例数据。因此同一份前端文件既能直接打开演示，也能被后端托管。
 
-# 方式二：起一个最小静态服务器（推荐，路径行为与正式部署一致）
-cd public
-npx --yes serve . -l 4173
-# 首页 http://127.0.0.1:4173/   管理台 http://127.0.0.1:4173/admin.html
-```
+### 12.2.2 首次使用流程
 
-- 预览模式默认口令 `admin / 123456`，数据只写浏览器 localStorage，刷新页面保留、清缓存即还原。
-- 顶栏右侧显示「登录」；登录后变「管理台 / 退出」，验证了普通用户与管理员两种视图。
-- 接入正式后端后，同一份页面自动切换到 `/api/*` 与会话 Cookie，无需改动 HTML。
+1. 浏览器打开 `http://127.0.0.1:8080`，匿名即可看到全部卡片与状态。
+2. 点击右上角「登录」，用 `admin / 123456` 进入管理台。
+3. 顶部黄色提醒条会出现，提示尽快修改默认口令。
+4. 在「分组管理」建分组，在「服务卡片」新增服务（填 `192.168.1.20:8096` 这类地址即可）。
+5. 回到首页，状态点会自动刷新为绿色 / 红色并显示延迟。
+
 
 ### 12.3 注册为 Windows 服务（推荐 NSSM）
 
+已提供脚本，以**管理员身份**打开 PowerShell 后执行：
+
 ```powershell
-# scripts/install-service.ps1，需以管理员身份运行
+# 1) 安装 NSSM（任选其一）
+winget install --id NSSM.NSSM -e
+# 或手动下载 https://nssm.cc/download，把 nssm.exe 放进 PATH
+
+# 2) 安装服务（默认端口 8080，服务名 WinNav），并放行防火墙
+powershell -ExecutionPolicy Bypass -File .\scripts\install-service.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\open-firewall.ps1
+
+# 3) 卸载
+powershell -ExecutionPolicy Bypass -File .\scripts\uninstall-service.ps1
+```
+
+脚本等价的手工命令：
+
+```powershell
 $node = (Get-Command node).Source
 $app  = "E:\path\to\WinNav\src\server.js"
 $root = "E:\path\to\WinNav"
@@ -681,10 +763,7 @@ nssm set WinNav Start SERVICE_AUTO_START
 nssm start WinNav
 ```
 
-- 备选方案：`node-windows`（npm 包，用脚本生成服务）、任务计划程序「开机启动 + 失败重启」。
-- 卸载：`nssm stop WinNav; nssm remove WinNav confirm`。
-- 如需局域网访问，放行防火墙端口：
-  `New-NetFirewallRule -DisplayName "WinNav" -Direction Inbound -Protocol TCP -LocalPort 8080 -Action Allow`
+服务日志同时写入 `data/logs/app-YYYY-MM-DD.log` 与 NSSM 的 `service.out.log`。
 
 ### 12.4 访问地址
 
@@ -777,6 +856,7 @@ nssm start WinNav
 
 ## 15. 验收标准
 
+0. （已自动化）`npm test` 通过 33 项测试；端到端脚本 50 项断言全部通过。
 1. 在干净的 Windows 机器上按 12.2 步骤操作，3 分钟内完成启动并看到首页。
 2. 新增「`127.0.0.1:8080`」与「`http://不存在的域名`」两条记录，刷新页面后分别显示绿点 `<1 ms` 与红点 `—`。
 3. 在 100 个服务的配置下刷新页面：500 ms 内出现可交互骨架，5 s 内所有卡片完成状态更新。
@@ -796,14 +876,15 @@ nssm start WinNav
 
 ## 16. 里程碑
 
-| 阶段 | 内容 | 产出 |
+| 阶段 | 内容 | 状态 |
 | --- | --- | --- |
-| M1（P0） | 数据存储、探测引擎、首页渲染、页面加载自动刷新、SSE 推送 | 可用的只读导航站 |
-| M2（P0 / P1） | 账号库、登录会话、管理员鉴权中间件、CRUD、排序、测试连接、日志 | 可自助维护 |
-| M3（P1 / P2） | 账号设置（改用户名 / 口令）、搜索、折叠、主题、导入导出、定时探测、服务化脚本 | 可交付版本 v1.0 |
-| M4（可选） | 单元测试、国际化、大屏模式 | 长期维护 |
+| M1（P0） | 数据存储、探测引擎、首页渲染、页面加载自动刷新、SSE 推送 | ✅ 已完成 |
+| M2（P0 / P1） | 账号库、登录会话、管理员鉴权中间件、CRUD、排序、测试连接、日志 | ✅ 已完成 |
+| M3（P1 / P2） | 账号设置（改用户名 / 口令）、搜索、折叠、导入导出、定时探测、服务化脚本 | ✅ 已完成 |
+| M3.5（P1） | 主题切换 UI、卡片拖拽排序 UI、大屏模式 | ⏳ 待做 |
+| M4（可选） | 国际化、历史在线率、多管理员 | 未排期 |
 
-**建议实现顺序**：`store.js` → `users.js`（默认账号 + 哈希）→ `auth.js`（会话与 `requireAdmin`）→ `probe.js`（含单测）→ `/api/state` + SSE → 首页（匿名视图）→ 登录页 → 管理页 → 账号设置 → 服务化脚本。
+**当前进度**：M1~M3 已全部落地并通过测试，前后端已联通；打开 `http://127.0.0.1:8080` 即为真实数据，新增 / 编辑卡片会即时反映到首页。
 
 ---
 
