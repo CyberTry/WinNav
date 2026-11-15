@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="color-scheme" content="dark" />
+<meta name="theme-color" content="#07070f" />
+<meta name="robots" content="noindex" />
+<title>管理台 · WinNav</title>
+<link rel="stylesheet" href="./css/style.css" />
+<link rel="stylesheet" href="./css/admin.css" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%237c5cff'/%3E%3Cstop offset='.5' stop-color='%2325d0ff'/%3E%3Cstop offset='1' stop-color='%23ff4fd8'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='9' fill='url(%23g)'/%3E%3Ctext x='16' y='23' font-family='Segoe UI,sans-serif' font-size='17' font-weight='700' fill='%23fff' text-anchor='middle'%3EW%3C/text%3E%3C/svg%3E" />
+</head>
+<body>
+
+<!-- ================= 动态渐变背景 ================= -->
+<div class="bg" aria-hidden="true">
+  <span class="blob a"></span>
+  <span class="blob b"></span>
+  <span class="blob c"></span>
+  <span class="blob d"></span>
+  <span class="grid-lines"></span>
+</div>
+
+<!-- ================= 顶栏 ================= -->
+<header class="topbar">
+  <div class="brand">
+    <span class="mark"><span>W</span></span>
+    <span class="name">WinNav</span>
+  </div>
+
+  <div class="search" style="visibility:hidden"></div>
+
+  <a class="btn" id="homeLink" href="./index.html" title="返回导航首页">
+    <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M3 11 12 4l9 7"/><path d="M5.5 9.8V20h13V9.8"/>
+    </svg>
+    <span>导航首页</span>
+  </a>
+
+  <div class="who" id="whoBadge" hidden>
+    <span class="avatar" id="whoAvatar">A</span>
+    <span>管理员 <b id="whoName">admin</b></span>
+  </div>
+
+  <button class="btn" id="logoutBtn" type="button" hidden>
+    <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M12 3v9"/><path d="M6.2 6.2a8 8 0 1 0 11.6 0"/>
+    </svg>
+    <span>退出</span>
+  </button>
+</header>
+
+<!-- ================= 登录门 ================= -->
+<section class="gate" id="gate">
+  <form class="gate-card" id="loginForm" novalidate>
+    <span class="gate-badge"><i></i>管理员入口</span>
+    <h1>登录管理台</h1>
+    <p class="sub">普通用户无需登录即可浏览导航首页。仅管理员可编辑卡片、分组与账号设置。</p>
+
+    <div class="form-error" id="loginError" role="alert">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5"/><path d="M12 16.5h.01"/>
+      </svg>
+      <span id="loginErrorText"></span>
+    </div>
+
+    <div class="field">
+      <label for="loginUser">用户名</label>
+      <input class="input" id="loginUser" name="username" type="text" autocomplete="username"
+             value="admin" placeholder="admin" required />
+    </div>
+
+    <div class="field">
+      <label for="loginPass">口令</label>
+      <input class="input" id="loginPass" name="password" type="password" autocomplete="current-password"
+             placeholder="默认口令 123456" required />
+      <span class="hint">首次安装默认账号：admin / 123456，登录后请立即修改。</span>
+    </div>
+
+    <button class="btn primary" id="loginBtn" type="submit" style="width:100%;height:44px">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M10 17l5-5-5-5"/><path d="M15 12H3"/><path d="M14 4h5a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-5"/>
+      </svg>
+      <span>登录</span>
+    </button>
+
+    <div class="gate-foot">
+      <span class="hint" id="gateMode">静态预览模式</span>
+      <a class="link-muted" id="homeLink2" href="./index.html">返回导航首页</a>
+    </div>
+  </form>
+</section>
+
+<!-- ================= 管理台主体 ================= -->
+<main class="shell" id="shell" hidden>
+  <div class="shell-head">
+    <h1>管理台</h1>
+    <span class="sub" style="font-size:12.5px;color:var(--muted)" id="shellSub">管理服务卡片、分组与账号</span>
+    <span class="spacer"></span>
+  </div>
+
+  <div class="banner" id="pwdBanner" role="status">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+      <path d="M12 3 2.5 20h19L12 3Z"/><path d="M12 9.5v5"/><path d="M12 17.5h.01"/>
+    </svg>
+    <span>当前仍在使用<b>默认口令 123456</b>，任何能访问本站的人都可以编辑卡片，请尽快修改。</span>
+    <button class="btn sm" type="button" id="bannerChangeBtn">立即修改</button>
+  </div>
+
+  <div class="banner info" id="modeBanner" role="status">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="9"/><path d="M12 8h.01"/><path d="M11 12h1v5h1"/>
+    </svg>
+    <span id="modeBannerText">静态预览模式：数据保存在浏览器本地，不会写入服务器。</span>
+  </div>
+
+  <div class="tabs" role="tablist">
+    <button class="tab active" type="button" role="tab" data-tab="services">
+      服务卡片 <span class="badge" id="tabSvcCount">0</span>
+    </button>
+    <button class="tab" type="button" role="tab" data-tab="groups">
+      分组管理 <span class="badge" id="tabGrpCount">0</span>
+    </button>
+    <button class="tab" type="button" role="tab" data-tab="account">账号设置</button>
+  </div>
+
+  <!-- ---------- 服务卡片 ---------- -->
+  <section class="panel" data-panel="services">
+    <div class="panel-head">
+      <h2>服务卡片</h2>
+      <span class="sub" id="svcSummary">—</span>
+      <span class="spacer"></span>
+      <button class="btn sm" type="button" id="testAllBtn" title="重新探测全部服务">刷新状态</button>
+      <button class="btn accent sm" type="button" id="addSvcBtn">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" aria-hidden="true">
+          <path d="M12 5v14"/><path d="M5 12h14"/>
+        </svg>
+        <span>新增服务</span>
+      </button>
+    </div>
+
+    <div class="table-wrap">
+      <table class="svc">
+        <thead>
+          <tr>
+            <th style="width:34px"></th>
+            <th>名称 / 描述</th>
+            <th>访问地址</th>
+            <th>状态</th>
+            <th>启用</th>
+            <th style="text-align:right">操作</th>
+          </tr>
+        </thead>
+        <tbody id="svcBody"></tbody>
+      </table>
+    </div>
+    <div class="panel-empty" id="svcEmpty" hidden>
+      <div class="big">🗂️</div>
+      还没有服务卡片，点击右上角「新增服务」开始。
+    </div>
+  </section>
+
+  <!-- ---------- 分组管理 ---------- -->
+  <section class="panel" data-panel="groups" hidden>
+    <div class="panel-head">
+      <h2>分组管理</h2>
+      <span class="sub">分组顺序决定首页展示顺序</span>
+      <span class="spacer"></span>
+      <button class="btn accent sm" type="button" id="addGrpBtn">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" aria-hidden="true">
+          <path d="M12 5v14"/><path d="M5 12h14"/>
+        </svg>
+        <span>新增分组</span>
+      </button>
+    </div>
+    <div class="group-list" id="groupList"></div>
+    <div class="panel-empty" id="grpEmpty" hidden>
+      <div class="big">📁</div>
+      还没有分组，先创建一个分组再添加服务。
+    </div>
+  </section>
+
+  <!-- ---------- 账号设置 ---------- -->
+  <section class="panel" data-panel="account" hidden>
+    <div class="panel-head">
+      <h2>账号设置</h2>
+      <span class="sub">修改后旧凭据立即失效，其他设备需要重新登录</span>
+    </div>
+
+    <form id="accountForm" novalidate style="max-width:520px">
+      <div class="form-error" id="accError" role="alert">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5"/><path d="M12 16.5h.01"/>
+        </svg>
+        <span id="accErrorText"></span>
+      </div>
+
+      <div class="field">
+        <label for="accUser">用户名</label>
+        <input class="input" id="accUser" type="text" autocomplete="username" required />
+        <span class="hint">3~32 位，仅限字母、数字、下划线与连字符，全局唯一。</span>
+      </div>
+
+      <div class="field">
+        <label for="accCurrent">当前口令</label>
+        <input class="input" id="accCurrent" type="password" autocomplete="current-password" placeholder="用于确认身份" required />
+      </div>
+
+      <div class="field">
+        <label for="accNew">新口令</label>
+        <input class="input" id="accNew" type="password" autocomplete="new-password" placeholder="留空表示不修改口令" />
+        <span class="hint">6~64 位；建议至少 10 位并混合大小写、数字与符号。</span>
+      </div>
+
+      <div class="field">
+        <label for="accNew2">确认新口令</label>
+        <input class="input" id="accNew2" type="password" autocomplete="new-password" placeholder="再次输入新口令" />
+      </div>
+
+      <div class="modal-foot" style="justify-content:flex-start;gap:10px;margin-top:12px">
+        <button class="btn primary" type="submit" id="accSaveBtn">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M5 4h11l3 3v13H5z"/><path d="M8.5 4v5h7V4"/><path d="M8.5 20v-6h7v6"/>
+          </svg>
+          <span>保存修改</span>
+        </button>
+        <button class="btn" type="button" id="accResetBtn">重置表单</button>
+      </div>
+    </form>
+  </section>
+
+  <footer class="foot">
+    <span>WinNav v0.2</span>
+    <span class="sep">·</span>
+    <span>仅管理员可编辑 · 普通用户免登录浏览</span>
+  </footer>
+</main>
+
+<!-- ================= 服务编辑对话框 ================= -->
+<div class="modal" id="svcModal" role="dialog" aria-modal="true" aria-labelledby="svcModalTitle">
+  <div class="modal-card">
+    <form id="svcForm" novalidate>
+      <div class="modal-head">
+        <h2 id="svcModalTitle">新增服务</h2>
+        <span class="spacer"></span>
+        <button class="modal-close" type="button" data-close="svcModal" aria-label="关闭">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+            <path d="M6 6l12 12"/><path d="M18 6 6 18"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="form-error" id="svcError" role="alert">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5"/><path d="M12 16.5h.01"/>
+        </svg>
+        <span id="svcErrorText"></span>
+      </div>
+
+      <div class="form-grid">
+        <div class="field">
+          <label for="svcName">名称 *</label>
+          <input class="input" id="svcName" type="text" placeholder="Jellyfin" required />
+        </div>
+        <div class="field">
+          <label for="svcGroup">分组 *</label>
+          <select class="input" id="svcGroup" required></select>
+        </div>
+        <div class="field full">
+          <label for="svcDesc">描述</label>
+          <input class="input" id="svcDesc" type="text" placeholder="影音服务器" />
+        </div>
+        <div class="field full">
+          <label for="svcUrl">访问地址 *</label>
+          <input class="input" id="svcUrl" type="text" placeholder="192.168.1.20:8096 或 https://panel.example.com" required />
+          <span class="hint">支持 IP:端口、域名:端口 或完整 URL；省略协议时自动补全 http://。</span>
+        </div>
+        <div class="field">
+          <label for="svcIcon">图标</label>
+          <input class="input" id="svcIcon" type="text" placeholder="🎬 或 /icons/logo.png" />
+          <span class="hint">支持 emoji、图片 URL 或 /icons/ 本地路径。</span>
+        </div>
+        <div class="field">
+          <label for="svcOrder">排序</label>
+          <input class="input" id="svcOrder" type="number" min="0" step="1" value="0" />
+        </div>
+        <div class="field full" style="flex-direction:row;align-items:center;gap:12px;margin-bottom:6px">
+          <label class="switch">
+            <input type="checkbox" id="svcEnabled" checked />
+            <span class="track"></span>
+          </label>
+          <span style="font-size:13px;color:#c2cae6">启用（停用后首页置灰且不参与探测）</span>
+        </div>
+      </div>
+
+      <div class="probe-out" id="probeOut"></div>
+
+      <div class="modal-foot">
+        <button class="btn sm" type="button" id="probeBtn">测试连接</button>
+        <span style="flex:1"></span>
+        <button class="btn" type="button" data-close="svcModal">取消</button>
+        <button class="btn primary" type="submit" id="svcSaveBtn">保存</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ================= 分组编辑对话框 ================= -->
+<div class="modal" id="grpModal" role="dialog" aria-modal="true" aria-labelledby="grpModalTitle">
+  <div class="modal-card" style="width:min(440px,100%)">
+    <form id="grpForm" novalidate>
+      <div class="modal-head">
+        <h2 id="grpModalTitle">新增分组</h2>
+        <span class="spacer"></span>
+        <button class="modal-close" type="button" data-close="grpModal" aria-label="关闭">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+            <path d="M6 6l12 12"/><path d="M18 6 6 18"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="form-error" id="grpError" role="alert">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5"/><path d="M12 16.5h.01"/>
+        </svg>
+        <span id="grpErrorText"></span>
+      </div>
+
+      <div class="field">
+        <label for="grpName">分组名称 *</label>
+        <input class="input" id="grpName" type="text" placeholder="家庭服务" required />
+      </div>
+
+      <div class="field">
+        <label for="grpAccent">强调色</label>
+        <input class="input" id="grpAccent" type="text" placeholder="#7c5cff" />
+        <span class="hint">用于分组标记与卡片光晕，可填任意 CSS 颜色。</span>
+      </div>
+
+      <div class="modal-foot">
+        <button class="btn" type="button" data-close="grpModal">取消</button>
+        <button class="btn primary" type="submit" id="grpSaveBtn">保存</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<script src="./js/mock-data.js" defer></script>
+<script src="./js/admin.js" defer></script>
+</body>
+</html>

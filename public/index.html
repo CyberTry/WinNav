@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="color-scheme" content="dark" />
+<meta name="theme-color" content="#07070f" />
+<meta name="description" content="WinNav · 内网服务导航站，一个入口看全所有服务与在线状态" />
+<title>WinNav · 服务导航</title>
+<link rel="stylesheet" href="./css/style.css" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%237c5cff'/%3E%3Cstop offset='.5' stop-color='%2325d0ff'/%3E%3Cstop offset='1' stop-color='%23ff4fd8'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='9' fill='url(%23g)'/%3E%3Ctext x='16' y='23' font-family='Segoe UI,sans-serif' font-size='17' font-weight='700' fill='%23fff' text-anchor='middle'%3EW%3C/text%3E%3C/svg%3E" />
+</head>
+<body>
+
+<!-- ================= 动态渐变背景 ================= -->
+<div class="bg" aria-hidden="true">
+  <span class="blob a"></span>
+  <span class="blob b"></span>
+  <span class="blob c"></span>
+  <span class="blob d"></span>
+  <span class="grid-lines"></span>
+</div>
+
+<!-- ================= 顶栏 ================= -->
+<header class="topbar">
+  <div class="brand">
+    <span class="mark"><span>W</span></span>
+    <span class="name">WinNav</span>
+  </div>
+
+  <div class="search">
+    <svg class="search-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true">
+      <circle cx="11" cy="11" r="7"/><path d="m20 20-3.6-3.6"/>
+    </svg>
+    <input id="search" type="search" placeholder="搜索服务名称 / 描述 / 地址" autocomplete="off" spellcheck="false" aria-label="搜索服务" />
+    <kbd>/</kbd>
+  </div>
+
+  <button class="btn" id="refreshBtn" type="button" title="重新探测所有服务">
+    <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/>
+    </svg>
+    <span>刷新状态</span>
+  </button>
+
+  <!-- 普通用户：只显示「登录」；管理员登录后由 app.js 切换为「管理台 / 退出」 -->
+  <div class="auth-slot" id="authSlot">
+    <a class="btn primary" href="./admin.html" title="管理员登录">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="4" y="10.5" width="16" height="9.5" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>
+      </svg>
+      <span>登录</span>
+    </a>
+  </div>
+</header>
+
+<!-- ================= 主体 ================= -->
+<main class="page">
+  <section class="hero">
+    <h1>服务导航</h1>
+    <p>一个入口看全内网服务 · 打开页面即自动刷新状态</p>
+    <div class="stats" role="status" aria-live="polite">
+      <span class="pill"><i class="dot online"></i><b id="st-online">0</b> 在线</span>
+      <span class="pill"><i class="dot offline"></i><b id="st-offline">0</b> 离线</span>
+      <span class="pill"><i class="dot unknown"></i><b id="st-unknown">0</b> 未知</span>
+      <span class="pill">共 <b id="st-total">0</b> 个服务</span>
+    </div>
+  </section>
+
+  <div id="groups" aria-live="polite"></div>
+
+  <div id="empty" class="empty" hidden>
+    <div class="empty-ico">🔍</div>
+    <p>没有匹配的服务</p>
+    <span>试试其他关键词，或按 Esc 清空搜索</span>
+  </div>
+
+  <footer class="foot">
+    <span>WinNav v0.2</span>
+    <span class="sep">·</span>
+    <span id="dataMode">静态预览（示例数据）</span>
+    <span class="sep">·</span>
+    <span>绿 = 可达 / 红 = 不可达 / 灰 = 探测中</span>
+  </footer>
+</main>
+
+<script src="./js/mock-data.js" defer></script>
+<script src="./js/app.js" defer></script>
+</body>
+</html>
