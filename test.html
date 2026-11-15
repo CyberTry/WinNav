@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>WinNav · 服务导航</title>
+<style>
+/* ============ 基础变量 ============ */
+:root{
+  --bg:#07070f;
+  --text:#eef0ff;
+  --muted:#9aa3c7;
+  --stroke:rgba(255,255,255,.12);
+  --glass:rgba(255,255,255,.055);
+  --green:#34e0a1;
+  --red:#ff5f7a;
+  --amber:#ffc857;
+  --orange:#ff9a4d;
+  --c-purple:#7c5cff;
+  --c-pink:#ff4fd8;
+  --c-cyan:#25d0ff;
+  --c-mint:#34e0a1;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;
+  min-height:100vh;
+  overflow-x:hidden;
+  background:var(--bg);
+  color:var(--text);
+  font-family:"Segoe UI Variable","Segoe UI",system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+}
+::selection{background:rgba(124,92,255,.45);color:#fff}
+a{color:inherit}
+
+/* ============ 动态渐变背景 ============ */
+.bg{
+  position:fixed; inset:0; z-index:0; overflow:hidden; pointer-events:none;
+  background:
+    radial-gradient(120% 90% at 50% -10%, rgba(124,92,255,.22), transparent 62%),
+    radial-gradient(80% 70% at 100% 105%, rgba(37,208,255,.16), transparent 60%),
+    radial-gradient(70% 60% at 0% 100%, rgba(255,79,216,.12), transparent 60%);
+}
+.blob{
+  position:absolute; border-radius:50%;
+  filter:blur(80px); opacity:.5;
+  will-change:transform;
+  animation:drift 22s ease-in-out infinite alternate;
+}
+.blob.a{width:46vw;height:46vw;left:-10vw;top:-12vw;background:linear-gradient(135deg,#7c5cff,#ff4fd8)}
+.blob.b{width:40vw;height:40vw;right:-8vw;top:4vh;background:linear-gradient(135deg,#25d0ff,#5c7cff);animation-duration:26s}
+.blob.c{width:38vw;height:38vw;left:20vw;bottom:-18vw;background:linear-gradient(135deg,#34e0a1,#25d0ff);animation-duration:30s}
+.blob.d{width:26vw;height:26vw;right:16vw;bottom:-10vw;background:linear-gradient(135deg,#ff4fd8,#ffc857);opacity:.32;animation-duration:18s}
+@keyframes drift{
+  from{transform:translate3d(0,0,0) scale(1)}
+  to{transform:translate3d(4vw,6vh,0) scale(1.16)}
+}
+.grid-lines{
+  position:absolute; inset:0;
+  background-image:
+    linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px);
+  background-size:56px 56px;
+  -webkit-mask-image:radial-gradient(circle at 50% 26%, #000 0%, transparent 74%);
+  mask-image:radial-gradient(circle at 50% 26%, #000 0%, transparent 74%);
+}
+
+/* ============ 顶栏 ============ */
+.topbar{
+  position:sticky; top:0; z-index:30;
+  display:flex; align-items:center; gap:12px;
+  padding:13px clamp(16px,4vw,40px);
+  background:rgba(9,9,20,.55);
+  border-bottom:1px solid rgba(255,255,255,.07);
+  backdrop-filter:blur(18px) saturate(150%);
+  -webkit-backdrop-filter:blur(18px) saturate(150%);
+}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:18px;letter-spacing:.2px;flex:none}
+.brand .mark{
+  width:34px;height:34px;border-radius:11px;display:grid;place-items:center;
+  font-size:15px;font-weight:800;color:#fff;
+  background:conic-gradient(from 140deg,#7c5cff,#25d0ff,#34e0a1,#ff4fd8,#7c5cff);
+  box-shadow:0 8px 24px -8px rgba(124,92,255,.9), inset 0 0 0 1px rgba(255,255,255,.28);
+  animation:spinSlow 14s linear infinite;
+}
+@keyframes spinSlow{to{transform:rotate(360deg)}}
+.brand .mark>span{animation:spinSlow 14s linear infinite reverse} /* 抵消旋转，保持字母正向 */
+.brand .name{
+  background:linear-gradient(90deg,#ffffff,#cdd5ff 55%,#9fb0ff);
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+}
+
+.search{position:relative;flex:1;max-width:420px;margin-left:auto;min-width:0}
+.search input{
+  width:100%; height:40px;
+  padding:0 44px 0 38px;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,.12);
+  background:rgba(255,255,255,.05);
+  color:var(--text); font-size:14px; outline:none;
+  backdrop-filter:blur(10px);
+  transition:border-color .25s, box-shadow .25s, background .25s;
+  appearance:none; -webkit-appearance:none;
+}
+.search input::-webkit-search-cancel-button{display:none}
+.search input::placeholder{color:#7f88ab}
+.search input:focus{
+  border-color:rgba(124,92,255,.72);
+  background:rgba(255,255,255,.08);
+  box-shadow:0 0 0 4px rgba(124,92,255,.16), 0 14px 34px -18px rgba(124,92,255,.95);
+}
+.search-ico{
+  position:absolute; left:12px; top:50%; transform:translateY(-50%);
+  width:17px; height:17px; color:#8b93b5; pointer-events:none;
+}
+.search kbd{
+  position:absolute; right:9px; top:50%; transform:translateY(-50%);
+  font:600 11px/1 ui-monospace,SFMono-Regular,Consolas,monospace;
+  color:#98a0c0; background:rgba(255,255,255,.08);
+  border:1px solid rgba(255,255,255,.13); border-radius:6px;
+  padding:3px 6px; pointer-events:none;
+}
+
+.btn{
+  display:inline-flex; align-items:center; gap:8px;
+  height:40px; padding:0 16px; flex:none;
+  border-radius:12px; border:1px solid rgba(255,255,255,.14);
+  background:rgba(255,255,255,.06);
+  color:var(--text); font-size:14px; font-weight:600;
+  text-decoration:none; cursor:pointer; white-space:nowrap;
+  transition:transform .2s, background .2s, box-shadow .2s, border-color .2s;
+}
+.btn:hover{background:rgba(255,255,255,.115); transform:translateY(-1px)}
+.btn:active{transform:translateY(0)}
+.btn:focus-visible{outline:2px solid rgba(124,92,255,.85); outline-offset:2px}
+.btn .ico{width:16px;height:16px;flex:none}
+.btn.primary{
+  border-color:transparent; color:#fff;
+  background:linear-gradient(135deg,#7c5cff,#ff4fd8);
+  box-shadow:0 12px 30px -14px rgba(124,92,255,.95);
+}
+.btn.primary:hover{box-shadow:0 16px 36px -14px rgba(255,79,216,.9)}
+.btn[disabled]{opacity:.6; cursor:not-allowed; transform:none}
+.btn.loading .ico{animation:spin .9s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ============ 页面容器 ============ */
+.page{
+  position:relative; z-index:1;
+  max-width:1440px; margin:0 auto;
+  padding:clamp(18px,3vw,34px) clamp(16px,4vw,40px) 80px;
+}
+
+/* ============ Hero ============ */
+.hero{display:flex;flex-direction:column;gap:10px}
+.hero h1{
+  margin:0;
+  font-size:clamp(26px,4.2vw,40px);
+  font-weight:800; letter-spacing:-.6px; line-height:1.1;
+  background:linear-gradient(100deg,#ffffff,#c3ccff 42%,#8fe6ff 68%,#ffffff);
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+  filter:drop-shadow(0 10px 30px rgba(124,92,255,.28));
+}
+.hero p{margin:0;color:var(--muted);font-size:14px}
+.stats{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+.pill{
+  display:inline-flex; align-items:center; gap:7px;
+  padding:6px 12px; border-radius:999px; font-size:12.5px; color:#c8cfe8;
+  background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.1);
+  backdrop-filter:blur(8px);
+  animation:fadeUp .5s cubic-bezier(.2,.8,.2,1) backwards;
+}
+.pill:nth-child(2){animation-delay:.05s}
+.pill:nth-child(3){animation-delay:.1s}
+.pill:nth-child(4){animation-delay:.15s}
+.pill b{color:#fff;font-variant-numeric:tabular-nums}
+
+/* ============ 分组 ============ */
+.group{margin-top:34px}
+.group-head{display:flex;align-items:center;gap:11px;margin-bottom:14px}
+.gdot{
+  width:10px;height:10px;border-radius:3px;flex:none;transform:rotate(45deg);
+  background:var(--accent,#7c5cff);
+  box-shadow:0 0 14px var(--accent,#7c5cff);
+}
+.group-head h2{margin:0;font-size:17px;font-weight:700;letter-spacing:.2px}
+.count{
+  font-size:12px;padding:3px 9px;border-radius:999px;color:var(--muted);
+  background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);
+  font-variant-numeric:tabular-nums; white-space:nowrap;
+}
+.collapse-btn{
+  margin-left:auto;width:30px;height:30px;flex:none;
+  display:grid;place-items:center;border-radius:9px;cursor:pointer;
+  background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);
+  color:var(--muted);transition:.22s;
+}
+.collapse-btn:hover{color:#fff;background:rgba(255,255,255,.12)}
+.collapse-btn svg{width:15px;height:15px;transition:transform .28s}
+.group.collapsed .collapse-btn svg{transform:rotate(-90deg)}
+.group.collapsed .grid{display:none}
+
+/* ============ 网格与卡片 ============ */
+.grid{
+  display:grid; gap:14px;
+  grid-template-columns:repeat(auto-fill,minmax(248px,1fr));
+}
+
+.card{
+  position:relative;
+  display:flex; flex-direction:column; gap:11px;
+  padding:16px;
+  border-radius:18px;
+  text-decoration:none; color:inherit;
+  background:linear-gradient(160deg, rgba(255,255,255,.085), rgba(255,255,255,.032));
+  border:1px solid rgba(255,255,255,.12);
+  backdrop-filter:blur(16px) saturate(150%);
+  -webkit-backdrop-filter:blur(16px) saturate(150%);
+  overflow:hidden;
+  transition:transform .28s cubic-bezier(.2,.8,.2,1), box-shadow .28s, border-color .28s;
+}
+.card::before{
+  content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none;
+  background:radial-gradient(340px circle at var(--mx,50%) var(--my,0%), rgba(255,255,255,.16), transparent 62%);
+  opacity:0; transition:opacity .32s;
+}
+.card:hover{
+  transform:translateY(-4px);
+  border-color:rgba(255,255,255,.24);
+  box-shadow:
+    0 24px 56px -28px rgba(0,0,0,.95),
+    0 18px 46px -26px var(--accent,#7c5cff);
+}
+.card:hover::before{opacity:1}
+.card:focus-visible{outline:2px solid rgba(124,92,255,.9); outline-offset:3px}
+
+.card-top{display:flex;align-items:center;gap:12px;min-width:0}
+.icon{
+  width:44px;height:44px;flex:none;border-radius:13px;
+  display:grid;place-items:center;font-size:21px;line-height:1;
+  background:linear-gradient(140deg, color-mix(in srgb, var(--accent,#7c5cff) 34%, transparent), rgba(255,255,255,.05));
+  border:1px solid rgba(255,255,255,.16);
+  box-shadow:0 10px 24px -14px var(--accent,#7c5cff);
+}
+.meta{min-width:0}
+.name{font-size:15px;font-weight:700;letter-spacing:.1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.desc{margin-top:2px;font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.url{
+  font:500 12px/1.4 ui-monospace,SFMono-Regular,Consolas,monospace;
+  color:#8f98bd; padding:8px 10px; border-radius:9px;
+  background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.06);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+
+.card-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:auto}
+.status{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600}
+.checked{font-size:11.5px;color:#7d86a8;white-space:nowrap}
+
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex:none;background:#6b7290;box-shadow:0 0 0 3px rgba(107,114,144,.15)}
+.dot.online{background:var(--green);box-shadow:0 0 10px rgba(52,224,161,.9), 0 0 0 3px rgba(52,224,161,.14)}
+.dot.offline{background:var(--red);box-shadow:0 0 10px rgba(255,95,122,.85), 0 0 0 3px rgba(255,95,122,.14)}
+.dot.unknown{background:#8b93b5;animation:pulse 1.5s ease-in-out infinite}
+@keyframes pulse{
+  0%,100%{opacity:.4; box-shadow:0 0 0 0 rgba(139,147,181,.5)}
+  50%{opacity:1; box-shadow:0 0 0 5px rgba(139,147,181,0)}
+}
+
+.lat{font-variant-numeric:tabular-nums;color:#c7cfea}
+.lat.fast{color:var(--green)}
+.lat.mid{color:var(--amber)}
+.lat.slow{color:var(--orange)}
+
+/* 首次渲染的入场动画 */
+body.booting .card{animation:fadeUp .5s cubic-bezier(.2,.8,.2,1) backwards}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+
+/* ============ 骨架屏 ============ */
+.skeleton{
+  height:154px;border-radius:18px;
+  border:1px solid rgba(255,255,255,.08);
+  background:linear-gradient(100deg, rgba(255,255,255,.05) 20%, rgba(255,255,255,.11) 38%, rgba(255,255,255,.05) 56%);
+  background-size:200% 100%;
+  animation:shimmer 1.4s linear infinite;
+}
+@keyframes shimmer{to{background-position:-200% 0}}
+.sk-head{
+  display:block;width:140px;height:16px;border-radius:6px;margin-bottom:18px;
+  background:linear-gradient(100deg, rgba(255,255,255,.06) 20%, rgba(255,255,255,.13) 38%, rgba(255,255,255,.06) 56%);
+  background-size:200% 100%;
+  animation:shimmer 1.4s linear infinite;
+}
+
+/* ============ 空状态 & 页脚 ============ */
+.empty{padding:70px 0;text-align:center;color:var(--muted)}
+.empty-ico{font-size:34px;margin-bottom:10px;filter:grayscale(.2)}
+.empty p{margin:0 0 6px;color:#dbe0f5;font-weight:600}
+.empty span{font-size:13px}
+
+.foot{
+  margin-top:56px;padding-top:18px;
+  border-top:1px solid rgba(255,255,255,.07);
+  font-size:12px;color:#6f779a;text-align:center;
+}
+
+/* ============ 响应式 ============ */
+@media (max-width:760px){
+  .topbar{flex-wrap:wrap;gap:10px;padding:12px 16px}
+  .search{order:3;flex-basis:100%;max-width:none;margin:0}
+  .search kbd{display:none}
+  .btn{padding:0 12px;font-size:13px}
+  .brand .name{display:none}
+}
+@media (max-width:640px){
+  .grid{grid-template-columns:1fr}
+  .group{margin-top:26px}
+}
+
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation-duration:.001ms !important;animation-iteration-count:1 !important;transition-duration:.001ms !important}
+}
+</style>
+</head>
+<body>
+
+<!-- 动态渐变背景 -->
+<div class="bg" aria-hidden="true">
+  <span class="blob a"></span>
+  <span class="blob b"></span>
+  <span class="blob c"></span>
+  <span class="blob d"></span>
+  <span class="grid-lines"></span>
+</div>
+
+<!-- 顶栏 -->
+<header class="topbar">
+  <div class="brand">
+    <span class="mark"><span>W</span></span>
+    <span class="name">WinNav</span>
+  </div>
+
+  <div class="search">
+    <svg class="search-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round">
+      <circle cx="11" cy="11" r="7"/><path d="m20 20-3.6-3.6"/>
+    </svg>
+    <input id="search" type="search" placeholder="搜索服务名称 / 描述 / 地址" autocomplete="off" spellcheck="false" />
+    <kbd>/</kbd>
+  </div>
+
+  <button class="btn" id="refreshBtn" type="button">
+    <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/>
+    </svg>
+    <span>刷新状态</span>
+  </button>
+
+  <a class="btn primary" href="/admin" title="管理员登录">
+    <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="4" y="10.5" width="16" height="9.5" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>
+    </svg>
+    <span>登录</span>
+  </a>
+</header>
+
+<!-- 主体 -->
+<main class="page">
+  <section class="hero">
+    <h1>服务导航</h1>
+    <p>一个入口看全内网服务 · 打开页面即自动刷新状态</p>
+    <div class="stats">
+      <span class="pill"><i class="dot online"></i><b id="st-online">0</b> 在线</span>
+      <span class="pill"><i class="dot offline"></i><b id="st-offline">0</b> 离线</span>
+      <span class="pill"><i class="dot unknown"></i><b id="st-unknown">0</b> 未知</span>
+      <span class="pill">共 <b id="st-total">0</b> 个服务</span>
+    </div>
+  </section>
+
+  <div id="groups"></div>
+
+  <div id="empty" class="empty" hidden>
+    <div class="empty-ico">🔍</div>
+    <p>没有匹配的服务</p>
+    <span>试试其他关键词，或按 Esc 清空搜索</span>
+  </div>
+
+  <footer class="foot">
+    WinNav v0.2 · 静态预览（示例数据）· 状态点：绿色可达 / 红色不可达 / 灰色探测中
+  </footer>
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ================= 示例数据（后续替换为 GET /api/state） ================= */
+  const GROUPS = [
+    { id: 'g_home', name: '家庭服务', accent: '#7c5cff' },
+    { id: 'g_ops',  name: '运维工具', accent: '#25d0ff' },
+    { id: 'g_dev',  name: '开发与办公', accent: '#34e0a1' }
+  ];
+
+  const SERVICES = [
+    { id: 's_jellyfin', groupId: 'g_home', name: 'Jellyfin', description: '影音服务器',
+      url: 'http://192.168.1.20:8096', displayUrl: '192.168.1.20:8096', icon: '🎬',
+      mockState: 'online', mockLatency: 12 },
+
+    { id: 's_nas', groupId: 'g_home', name: 'NAS 面板', description: '存储与备份',
+      url: 'http://192.168.1.10:5000', displayUrl: '192.168.1.10:5000', icon: '🗄️',
+      mockState: 'online', mockLatency: 3 },
+
+    { id: 's_router', groupId: 'g_home', name: '路由器', description: '主网关',
+      url: 'http://192.168.1.1', displayUrl: '192.168.1.1', icon: '🌐',
+      mockState: 'online', mockLatency: 0 },
+
+    { id: 's_hass', groupId: 'g_home', name: 'Home Assistant', description: '智能家居中枢',
+      url: 'http://192.168.1.30:8123', displayUrl: '192.168.1.30:8123', icon: '🏠',
+      mockState: 'online', mockLatency: 28 },
+
+    { id: 's_immich', groupId: 'g_home', name: 'Immich', description: '照片备份服务',
+      url: 'http://192.168.1.10:2283', displayUrl: '192.168.1.10:2283', icon: '🖼️',
+      mockState: 'offline', mockLatency: null, mockError: '连接超时 2500 ms' },
+
+    { id: 's_grafana', groupId: 'g_ops', name: 'Grafana', description: '监控可视化面板',
+      url: 'http://192.168.1.40:3000', displayUrl: '192.168.1.40:3000', icon: '📊',
+      mockState: 'online', mockLatency: 8 },
+
+    { id: 's_portainer', groupId: 'g_ops', name: 'Portainer', description: '容器管理',
+      url: 'https://192.168.1.40:9443', displayUrl: '192.168.1.40:9443', icon: '🐳',
+      mockState: 'offline', mockLatency: null, mockError: 'ECONNREFUSED 拒绝连接' },
+
+    { id: 's_proxmox', groupId: 'g_ops', name: 'Proxmox VE', description: '虚拟化平台',
+      url: 'https://192.168.1.50:8006', displayUrl: '192.168.1.50:8006', icon: '🖥️',
+      mockState: 'online', mockLatency: 45 },
+
+    { id: 's_uptime', groupId: 'g_ops', name: 'Uptime Kuma', description: '可用性监控',
+      url: 'http://192.168.1.40:3001', displayUrl: '192.168.1.40:3001', icon: '📈',
+      mockState: 'online', mockLatency: 6 },
+
+    { id: 's_gitlab', groupId: 'g_dev', name: 'GitLab', description: '代码托管',
+      url: 'http://git.lan', displayUrl: 'git.lan', icon: '🦊',
+      mockState: 'online', mockLatency: 15 },
+
+    { id: 's_wiki', groupId: 'g_dev', name: '内部 Wiki', description: '知识库与文档',
+      url: 'http://wiki.lan', displayUrl: 'wiki.lan', icon: '📚',
+      mockState: 'online', mockLatency: 22 },
+
+    { id: 's_ticket', groupId: 'g_dev', name: '工单系统', description: '内部流程与审批',
+      url: 'http://ticket.lan', displayUrl: 'ticket.lan', icon: '🎫',
+      mockState: 'offline', mockLatency: null, mockError: 'ENOTFOUND DNS 解析失败' }
+  ];
+
+  /* ================= 状态 ================= */
+  const state = {
+    statuses: new Map(),          // serviceId -> { state, latencyMs, checkedAt, error }
+    query: '',
+    collapsed: new Set(loadCollapsed()),
+    refreshing: false
+  };
+
+  const groupsEl  = document.getElementById('groups');
+  const emptyEl   = document.getElementById('empty');
+  const searchEl  = document.getElementById('search');
+  const refreshBtn = document.getElementById('refreshBtn');
+
+  /* ================= 小工具 ================= */
+  function el(tag, cls, text) {
+    const node = document.createElement(tag);
+    if (cls) node.className = cls;
+    if (text != null) node.textContent = text;
+    return node;
+  }
+  function statusOf(id) {
+    return state.statuses.get(id) || { state: 'unknown' };
+  }
+  function fmtTime(ts) {
+    const d = new Date(ts);
+    const p = n => String(n).padStart(2, '0');
+    return p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
+  }
+  function matchService(svc, q) {
+    return (svc.name + ' ' + svc.description + ' ' + svc.displayUrl).toLowerCase().includes(q);
+  }
+  function loadCollapsed() {
+    try { return JSON.parse(localStorage.getItem('winnav.collapsed') || '[]'); }
+    catch (e) { return []; }
+  }
+  function saveCollapsed() {
+    try { localStorage.setItem('winnav.collapsed', JSON.stringify([...state.collapsed])); }
+    catch (e) { /* 忽略隐私模式下的写入失败 */ }
+  }
+
+  /* ================= 卡片构建 ================= */
+  const CHEVRON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>';
+
+  function cardEl(svc, group) {
+    const card = el('a', 'card');
+    card.href = svc.url;
+    card.target = '_blank';
+    card.rel = 'noopener noreferrer';
+    card.dataset.id = svc.id;
+    card.style.setProperty('--accent', group.accent);
+
+    const top = el('div', 'card-top');
+    const icon = el('div', 'icon', svc.icon || svc.name.slice(0, 1).toUpperCase());
+    const meta = el('div', 'meta');
+    meta.appendChild(el('div', 'name', svc.name));
+    meta.appendChild(el('div', 'desc', svc.description));
+    top.append(icon, meta);
+
+    const url = el('div', 'url', svc.displayUrl);
+    url.title = svc.url;
+
+    const foot = el('div', 'card-foot');
+    const status = el('span', 'status');
+    status.append(el('i', 'dot unknown'), el('span', 'lat', '—'));
+    const checked = el('span', 'checked', '等待探测…');
+    foot.append(status, checked);
+
+    card.append(top, url, foot);
+    return card;
+  }
+
+  /* ================= 渲染 ================= */
+  function render() {
+    const q = state.query.trim().toLowerCase();
+    groupsEl.replaceChildren();
+
+    let visibleCount = 0;
+
+    for (const group of GROUPS) {
+      const items = SERVICES.filter(s => s.groupId === group.id && (!q || matchService(s, q)));
+      if (!items.length) continue;
+      visibleCount += items.length;
+
+      const section = el('section', 'group');
+      section.dataset.group = group.id;
+      section.style.setProperty('--accent', group.accent);
+      if (state.collapsed.has(group.id)) section.classList.add('collapsed');
+
+      const head = el('div', 'group-head');
+      head.appendChild(el('span', 'gdot'));
+      head.appendChild(el('h2', null, group.name));
+
+      const count = el('span', 'count', '');
+      count.dataset.countFor = group.id;
+      head.appendChild(count);
+
+      const btn = el('button', 'collapse-btn');
+      btn.type = 'button';
+      btn.setAttribute('aria-label', '折叠 / 展开分组');
+      btn.innerHTML = CHEVRON;
+      head.appendChild(btn);
+      section.appendChild(head);
+
+      const grid = el('div', 'grid');
+      for (const svc of items) grid.appendChild(cardEl(svc, group));
+      section.appendChild(grid);
+
+      groupsEl.appendChild(section);
+    }
+
+    emptyEl.hidden = visibleCount !== 0;
+
+    // 应用当前状态快照
+    SERVICES.forEach(paintStatus);
+    refreshStats();
+  }
+
+  /* ================= 状态绘制 ================= */
+  function paintStatus(svc) {
+    const card = groupsEl.querySelector('.card[data-id="' + svc.id + '"]');
+    if (!card) return;
+
+    const st = statusOf(svc.id);
+    const dot = card.querySelector('.dot');
+    const lat = card.querySelector('.lat');
+    const checked = card.querySelector('.checked');
+
+    dot.className = 'dot ' + st.state;
+    card.dataset.state = st.state;
+
+    if (st.state === 'online') {
+      const v = st.latencyMs;
+      lat.textContent = v < 1 ? '<1 ms' : v + ' ms';
+      lat.className = 'lat ' + (v < 50 ? 'fast' : v <= 200 ? 'mid' : 'slow');
+      card.title = svc.name + ' · 在线 · ' + lat.textContent;
+    } else if (st.state === 'offline') {
+      lat.textContent = '—';
+      lat.className = 'lat';
+      card.title = svc.name + ' · 离线' + (st.error ? ' · ' + st.error : '');
+    } else {
+      lat.textContent = '—';
+      lat.className = 'lat';
+      card.title = svc.name + ' · 探测中';
+    }
+
+    checked.textContent = st.checkedAt ? '最近检测 ' + fmtTime(st.checkedAt) : '等待探测…';
+  }
+
+  function refreshStats() {
+    let online = 0, offline = 0, unknown = 0;
+    for (const svc of SERVICES) {
+      const st = statusOf(svc.id).state;
+      if (st === 'online') online++;
+      else if (st === 'offline') offline++;
+      else unknown++;
+    }
+    setText('st-online', online);
+    setText('st-offline', offline);
+    setText('st-unknown', unknown);
+    setText('st-total', SERVICES.length);
+
+    for (const group of GROUPS) {
+      const node = groupsEl.querySelector('[data-count-for="' + group.id + '"]');
+      if (!node) continue;
+      const list = SERVICES.filter(s => s.groupId === group.id);
+      const on = list.filter(s => statusOf(s.id).state === 'online').length;
+      node.textContent = on + '/' + list.length + ' 在线';
+    }
+  }
+  function setText(id, value) {
+    const node = document.getElementById(id);
+    if (node) node.textContent = value;
+  }
+
+  /* ================= 全量刷新（模拟 SSE 逐条推送） ================= */
+  function refreshAll() {
+    if (state.refreshing) return;
+    state.refreshing = true;
+    refreshBtn.classList.add('loading');
+    refreshBtn.disabled = true;
+
+    // 1) 全部回到「探测中」
+    SERVICES.forEach(svc => state.statuses.set(svc.id, { state: 'unknown' }));
+    SERVICES.forEach(paintStatus);
+    refreshStats();
+
+    // 2) 逐条返回结果（真实实现由 EventSource 的 status 事件驱动）
+    let pending = SERVICES.length;
+    SERVICES.forEach(svc => {
+      const delay = 140 + Math.random() * 880;
+      setTimeout(() => {
+        state.statuses.set(svc.id, {
+          state: svc.mockState,
+          latencyMs: svc.mockState === 'online' ? svc.mockLatency : null,
+          error: svc.mockState === 'offline' ? svc.mockError : null,
+          checkedAt: Date.now()
+        });
+        paintStatus(svc);
+        refreshStats();
+
+        if (--pending === 0) {
+          // refresh:done
+          state.refreshing = false;
+          refreshBtn.classList.remove('loading');
+          setTimeout(() => { refreshBtn.disabled = false; }, 600);
+        }
+      }, delay);
+    });
+  }
+
+  /* ================= 骨架屏 ================= */
+  function renderSkeleton() {
+    groupsEl.replaceChildren();
+    for (let i = 0; i < 2; i++) {
+      const section = el('section', 'group');
+      section.appendChild(el('div', 'sk-head'));
+      const grid = el('div', 'grid');
+      for (let j = 0; j < 3; j++) grid.appendChild(el('div', 'skeleton'));
+      section.appendChild(grid);
+      groupsEl.appendChild(section);
+    }
+  }
+
+  /* ================= 交互事件 ================= */
+  // 搜索
+  searchEl.addEventListener('input', e => {
+    state.query = e.target.value;
+    render();
+  });
+
+  // 快捷键：/ 聚焦搜索，Esc 清空
+  document.addEventListener('keydown', e => {
+    const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
+    if (e.key === '/' && !typing) {
+      e.preventDefault();
+      searchEl.focus();
+      searchEl.select();
+    } else if (e.key === 'Escape' && document.activeElement === searchEl) {
+      searchEl.value = '';
+      state.query = '';
+      render();
+      searchEl.blur();
+    }
+  });
+
+  // 分组折叠（事件委托）
+  groupsEl.addEventListener('click', e => {
+    const btn = e.target.closest('.collapse-btn');
+    if (!btn) return;
+    const section = btn.closest('.group');
+    const id = section.dataset.group;
+    section.classList.toggle('collapsed');
+    if (section.classList.contains('collapsed')) state.collapsed.add(id);
+    else state.collapsed.delete(id);
+    saveCollapsed();
+  });
+
+  // 卡片动态光斑跟随（rAF 节流）
+  let glowRaf = null, glowCard = null, glowPos = null;
+  groupsEl.addEventListener('pointermove', e => {
+    const card = e.target.closest('.card');
+    if (!card) return;
+    glowCard = card;
+    glowPos = { x: e.clientX, y: e.clientY };
+    if (glowRaf) return;
+    glowRaf = requestAnimationFrame(() => {
+      glowRaf = null;
+      if (!glowCard || !glowPos) return;
+      const rect = glowCard.getBoundingClientRect();
+      glowCard.style.setProperty('--mx', (glowPos.x - rect.left) + 'px');
+      glowCard.style.setProperty('--my', (glowPos.y - rect.top) + 'px');
+    });
+  }, { passive: true });
+
+  // 手动刷新
+  refreshBtn.addEventListener('click', refreshAll);
+
+  /* ================= 启动 ================= */
+  renderSkeleton();
+
+  setTimeout(() => {
+    document.body.classList.add('booting');
+    render();
+    setTimeout(() => document.body.classList.remove('booting'), 900);
+
+    // 页面加载即自动触发一次全量刷新
+    refreshAll();
+  }, 420);
+})();
+</script>
+</body>
+</html>
