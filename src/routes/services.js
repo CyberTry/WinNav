@@ -4,6 +4,7 @@ const express = require('express');
 const store = require('../store');
 const hub = require('../hub');
 const probe = require('../probe');
+const favicon = require('../favicon');
 const { requireAdmin } = require('../auth');
 const { asyncHandler } = require('../errors');
 
@@ -25,6 +26,8 @@ router.post('/services', requireAdmin, asyncHandler(async (req, res) => {
 
 router.patch('/services/:id', requireAdmin, asyncHandler(async (req, res) => {
   const service = await store.updateService(req.params.id, req.body || {});
+  // 地址或图标变化时丢弃缓存，下次请求重新抓取
+  favicon.drop(service.id);
   notify();
   res.json({ ok: true, data: service });
 }));
@@ -32,6 +35,7 @@ router.patch('/services/:id', requireAdmin, asyncHandler(async (req, res) => {
 router.delete('/services/:id', requireAdmin, asyncHandler(async (req, res) => {
   const service = await store.deleteService(req.params.id);
   probe.dropService(service.id);
+  favicon.drop(service.id);
   notify();
   res.json({ ok: true, data: { id: service.id } });
 }));

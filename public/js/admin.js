@@ -243,17 +243,41 @@
   function iconMini(svc) {
     var box = el('div', 'mini');
     var icon = svc.icon || '';
+    var fallback = function () {
+      box.replaceChildren(document.createTextNode(svc.name.slice(0, 1).toUpperCase()));
+    };
+
     if (/^https?:\/\//i.test(icon) || icon.indexOf('/icons/') === 0) {
       var img = document.createElement('img');
       img.src = icon;
       img.alt = '';
-      img.addEventListener('error', function () {
-        box.replaceChildren(document.createTextNode(svc.name.slice(0, 1).toUpperCase()));
-      });
+      img.addEventListener('error', fallback);
       box.appendChild(img);
-    } else {
-      box.textContent = icon || svc.name.slice(0, 1).toUpperCase();
+      return box;
     }
+
+    if (!icon.trim()) {
+      var src = '';
+      if (MODE === 'api') {
+        src = '/api/favicon/' + encodeURIComponent(svc.id);
+      } else {
+        var url = normalizeUrl(svc.url);
+        try { if (url.href) src = new URL(url.href).origin + '/favicon.ico'; } catch (e) { src = ''; }
+      }
+      if (src) {
+        box.classList.add('auto-icon');
+        var fav = document.createElement('img');
+        fav.src = src;
+        fav.alt = '';
+        fav.loading = 'lazy';
+        fav.referrerPolicy = 'no-referrer';
+        fav.addEventListener('error', fallback);
+        box.appendChild(fav);
+        return box;
+      }
+    }
+
+    box.textContent = icon || svc.name.slice(0, 1).toUpperCase();
     return box;
   }
 

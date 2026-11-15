@@ -10,7 +10,7 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
-    "test": "node test/probe.test.js && node test/auth.test.js && node test/api.test.js"
+    "test": "node test/probe.test.js && node test/auth.test.js && node test/favicon.test.js && node test/api.test.js"
   },
   "dependencies": {
     "express": "^5.1.0"

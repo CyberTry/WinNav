@@ -73,6 +73,8 @@ WinNav 是一个可自托管的「服务导航站」服务端软件，运行在 
 | FR-01-4 | 访问地址支持 `IP:端口`、`域名:端口`、完整 URL（http / https）三种输入形式 | P0 |
 | FR-01-5 | 地址未写协议时自动补全 `http://`；未写端口时使用协议默认端口（80 / 443） | P0 |
 | FR-01-6 | 图标支持：图片 URL、`/icons/` 下的本地文件、emoji；未设置时显示名称首字母彩色占位块 | P1 |
+| FR-01-6a | **未设置图标时自动使用目标站点的 Favicon**：解析页面 `<link rel="icon">`，失败回退 `/favicon.ico`；仍失败才显示首字母占位块 | P0 |
+| FR-01-6b | Favicon 由服务端代理抓取并缓存（成功 6 h / 失败 10 min），支持 ETag 与 304，前端不直连第三方站点 | P0 |
 | FR-01-7 | 顶部搜索框按名称 / 描述 / 地址即时过滤，`/` 键聚焦 | P1 |
 | FR-01-8 | 分组可折叠，折叠状态本地记住 | P2 |
 | FR-01-9 | 卡片支持拖拽排序，分组支持上下移动 | P2 |
@@ -278,6 +280,7 @@ WinNav 是一个可自托管的「服务导航站」服务端软件，运行在 
 | `src/users.js` | `users.json`：默认账号、scrypt 加盐哈希、改用户名 / 口令、`tokenVersion` 踢会话 |
 | `src/auth.js` | 会话表、Cookie 下发、`requireAdmin`、登录限速（5 次 / 分钟、10 次锁 10 分钟）、测试连接配额 |
 | `src/probe.js` | TCP / HTTP / ICMP 探测、DNS 预检、in-flight 去重、TTL 缓存、并发池 |
+| `src/favicon.js` | 抓取目标站点图标：解析 `<link rel="icon">`、回退 `/favicon.ico`、跟随重定向、体积与类型校验、双 TTL 缓存、ETag |
 | `src/hub.js` | SSE 客户端集合与广播 |
 | `src/status.js` | 全量刷新编排（合并并发请求）、逐条推送、可选定时探测 |
 | `src/app.js` | 中间件装配：JSON 解析、访问日志、CSRF 同源校验、静态资源、统一错误响应 |
@@ -292,12 +295,74 @@ WinNav 是一个可自托管的「服务导航站」服务端软件，运行在 
 - 探测：TCP 优先，`httpCheck` 为真时追加 HEAD 请求记录状态码；HTTP 模式以任意响应码为在线；ICMP 调用系统 `ping`。
 - 刷新：`POST /api/state/refresh` 进行中再次调用返回 `coalesced: true`，不重复探测；每完成一个服务推送一条 SSE `status`。
 - 部署：`/admin` 与 `/admin.html` 均可用，静态资源由 Express 直接托管，无跨域问题。
+- 自动图标：卡片 `icon` 为空时，前端请求 `GET /api/favicon/:id`，服务端回源抓取并回传图片；`/favicon.ico` 与 `/favicon.svg` 同时供站点自身使用。
 
 **验证结果**
 
-- `npm test`：probe 12 项、auth 11 项、api 10 项，共 33 项全部通过。
+- `npm test`：probe 12 项、auth 11 项、favicon 9 项、api 14 项，共 46 项全部通过。
 - 端到端脚本：50 项断言全部通过（覆盖权限拦截、CRUD、探测、SSE、改凭据、会话失效、导出导入）。
 - 实际探测：本机服务 `online 2~5 ms`，关闭端口 `ECONNREFUSED`，不存在域名 `ENOTFOUND`，不可路由地址 `ETIMEDOUT`，均在预期内。
+
+### 6.6 自动 Favicon 图标（已交付）
+
+用户新增卡片时不填图标，卡片会自动显示目标网站的图标，无需手工上传。
+
+**取值顺序**
+
+1. 卡片 `icon` 字段非空 → 直接用（emoji / 图片 URL / `/icons/` 本地文件）。
+2. `icon` 为空 → 前端请求 `GET /api/favicon/:id`。
+3. 服务端回源：先抓目标页面，解析 `<link rel="icon|shortcut icon|apple-touch-icon">` 并按 `sizes` 挑最大的一张；解析不到则请求 `/favicon.ico`。
+4. 全部失败 → 前端回退为名称首字母彩色占位块（原有行为）。
+
+**抓取细节**
+
+| 项 | 取值 |
+| --- | --- |
+| 超时 | 单次请求 4 s |
+| 重定向 | 最多跟随 3 次（相对与绝对都支持） |
+| 图标体积上限 | 512 KB（超出即放弃） |
+| 页面解析上限 | 256 KB `text/html` |
+| 类型校验 | 仅接受 `content-type: image/*`，非图片直接丢弃 |
+| 请求头 | `Accept-Encoding: identity`（不解压，避免解压炸弹） |
+| 缓存 | 成功 6 h / 失败 10 min，进程内 Map；写入带 ETag |
+| 复用 | 同一服务并发请求合并为一次回源（in-flight 去重） |
+
+**安全边界**
+
+- 只接受数据库里已保存的服务 id，无法通过该接口代理任意 URL（避免被当作开放代理或 SSRF 跳板）。
+- 服务已设置自定义图标时该接口返回 404，前端也不会请求。
+- 响应固定带 `X-Content-Type-Options: nosniff`，图片以二进制直接回传，不写入磁盘。
+- 修改服务地址或图标、删除服务时立即丢弃对应缓存，下次访问重新抓取。
+
+**接口示例**
+
+```text
+GET /api/favicon/s_9da9e3ce4745
+→ 200 Content-Type: image/svg+xml
+   ETag: "4841c686c657de89fd145080"
+   Cache-Control: public, max-age=3600
+
+GET /api/favicon/s_9da9e3ce4745   （带 If-None-Match）
+→ 304 Not Modified
+
+GET /api/favicon/s_unknown
+→ 404 { "ok": false, "error": { "code": "NOT_FOUND", "message": "服务不存在" } }
+```
+
+**前端表现**
+
+- 卡片与后台表格共用同一逻辑：`icon` 为空即加载 `/api/favicon/:id`。
+- 自动抓取的图标多为透明 PNG，样式上加了浅白底与内边距（`.icon.auto-icon img`），避免深色背景下看不清。
+- 图片加载失败触发 `onerror`，无缝退回首字母占位，不会出现破图。
+- 预览模式（无后端）无法走代理，改为猜测 `origin + /favicon.ico`，仅作演示。
+
+**本站自身图标**：新增 `public/favicon.svg`，并由服务端把 `/favicon.ico` 与 `/favicon.svg` 都指向它。这样浏览器标签页有图标，`WinNav 自身` 这张卡片即使不填图标也能自动取到。
+
+**验证**
+
+- `test/favicon.test.js` 9 项：链接解析（尺寸排序、相对路径、`data:` 过滤）、真实抓取、`/favicon.ico` 回退、无图标、非图片拒绝、缓存只请求一次、302 跟随。
+- `test/api.test.js` 新增 4 项：代理返回图片与 ETag、304、未知服务 404、有自定义图标时 404、站点自身 `/favicon.ico`。
+- 实测：`WinNav 自身` 卡片首访 15 ms 取到 526 B SVG，二次 4 ms 命中缓存，`If-None-Match` 返回 304。
 
 ---
 
@@ -357,8 +422,10 @@ WinNav/
 │  ├─ probe.js               # TCP / HTTP / ICMP 探测、并发池、TTL 缓存、in-flight 去重
 │  ├─ hub.js                 # SSE 客户端管理与广播
 │  ├─ status.js              # 全量刷新编排、逐条推送、定时探测
+│  ├─ favicon.js             # 目标站点图标抓取、校验、缓存与 ETag
 │  └─ routes/
 │     ├─ state.js            # GET /state, POST /state/refresh, GET /status, PATCH /settings
+│     ├─ favicon.js          # GET /api/favicon/:id（图标代理）
 │     ├─ events.js           # GET /events（SSE，25 s 心跳）
 │     ├─ services.js         # 服务 CRUD 与排序
 │     ├─ groups.js           # 分组 CRUD 与排序
@@ -371,6 +438,7 @@ WinNav/
 │  ├─ js/app.js              # 首页逻辑（API / SSE / 轮询兜底 / 预览降级）
 │  ├─ js/admin.js            # 管理台逻辑
 │  ├─ js/mock-data.js        # 静态预览示例数据
+│  ├─ favicon.svg            # 站点自身图标（供 /favicon.ico 复用）
 │  └─ icons/                 # 本地图标
 ├─ data/                     # 运行时生成，不入版本库
 │  ├─ nav.json
@@ -521,6 +589,7 @@ WinNav/
 | PATCH | `/api/services/:id` | 管理员 | 更新服务 |
 | DELETE | `/api/services/:id` | 管理员 | 删除服务 |
 | PUT | `/api/services/order` | 管理员 | `{ groupId, ids: [...] }` |
+| GET | `/api/favicon/:id` | 无 | 代理返回目标站点 favicon；仅限已保存且未设置图标的服务；支持 ETag / 304 |
 | POST | `/api/probe/test` | 管理员 | `{ url }` → 单次探测结果，限速 10 次 / 分钟 |
 | GET | `/api/export` | 管理员 | 下载配置 JSON |
 | POST | `/api/import` | 管理员 | 上传并校验后整体覆盖（至少保留一个分组） |

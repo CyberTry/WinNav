@@ -98,6 +98,15 @@ function createApp() {
   app.get('/admin', (req, res) => res.sendFile(path.join(config.publicDir, 'admin.html')));
   app.get('/', (req, res) => res.sendFile(path.join(config.publicDir, 'index.html')));
 
+  // 站点自身图标：既供浏览器标签页使用，也让「导航自己」这张卡片能拿到 favicon
+  const serveFavicon = (req, res) => {
+    res.setHeader('Content-Type', 'image/svg+xml');
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.sendFile(path.join(config.publicDir, 'favicon.svg'));
+  };
+  app.get('/favicon.ico', serveFavicon);
+  app.get('/favicon.svg', serveFavicon);
+
   app.use((req, res) => {
     res.status(404).send('404 Not Found');
   });
