@@ -1,0 +1,15 @@
+E:\Users\SagaciousTry\Documents\我的文档\我的项目\WinNav\launcher\WinNavLauncher\bin\Release\net8.0-windows\win-x64\WinNavLauncher.exe
+E:\Users\SagaciousTry\Documents\我的文档\我的项目\WinNav\launcher\WinNavLauncher\bin\Release\net8.0-windows\win-x64\WinNavLauncher.deps.json
+E:\Users\SagaciousTry\Documents\我的文档\我的项目\WinNav\launcher\WinNavLauncher\bin\Release\net8.0-windows\win-x64\WinNavLauncher.runtimeconfig.json
+E:\Users\SagaciousTry\Documents\我的文档\我的项目\WinNav\launcher\WinNavLauncher\bin\Release\net8.0-windows\win-x64\WinNavLauncher.dll
+E:\Users\SagaciousTry\Documents\我的文档\我的项目\WinNav\launcher\WinNavLauncher\bin\Release\net8.0-windows\win-x64\WinNavLauncher.pdb
+E:\Users\SagaciousTry\Documents\我的文档\我的项目\WinNav\launcher\WinNavLauncher\obj\Release\net8.0-windows\win-x64\WinNavLauncher.GeneratedMSBuildEditorConfig.editorconfig
+E:\Users\SagaciousTry\Documents\我的文档\我的项目\WinNav\launcher\WinNavLauncher\obj\Release\net8.0-windows\win-x64\WinNavLauncher.AssemblyInfoInputs.cache
+E:\Users\SagaciousTry\Documents\我的文档\我的项目\WinNav\launcher\WinNavLauncher\obj\Release\net8.0-windows\win-x64\WinNavLauncher.AssemblyInfo.cs
+E:\Users\SagaciousTry\Documents\我的文档\我的项目\WinNav\launcher\WinNavLauncher\obj\Release\net8.0-windows\win-x64\WinNavLauncher.csproj.CoreCompileInputs.cache
+E:\Users\SagaciousTry\Documents\我的文档\我的项目\WinNav\launcher\WinNavLauncher\obj\Release\net8.0-windows\win-x64\WinNavLauncher.sourcelink.json
+E:\Users\SagaciousTry\Documents\我的文档\我的项目\WinNav\launcher\WinNavLauncher\obj\Release\net8.0-windows\win-x64\WinNavLauncher.dll
+E:\Users\SagaciousTry\Documents\我的文档\我的项目\WinNav\launcher\WinNavLauncher\obj\Release\net8.0-windows\win-x64\refint\WinNavLauncher.dll
+E:\Users\SagaciousTry\Documents\我的文档\我的项目\WinNav\launcher\WinNavLauncher\obj\Release\net8.0-windows\win-x64\WinNavLauncher.pdb
+E:\Users\SagaciousTry\Documents\我的文档\我的项目\WinNav\launcher\WinNavLauncher\obj\Release\net8.0-windows\win-x64\WinNavLauncher.genruntimeconfig.cache
+E:\Users\SagaciousTry\Documents\我的文档\我的项目\WinNav\launcher\WinNavLauncher\obj\Release\net8.0-windows\win-x64\ref\WinNavLauncher.dll

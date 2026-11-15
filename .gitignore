@@ -6,3 +6,6 @@ data/
 .edge-profile/
 .shot-*.png
 .tmp-*
+dist/
+launcher/bin/
+launcher/obj/

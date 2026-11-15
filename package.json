@@ -10,9 +10,14 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
+    "build:exe": "node scripts/build-exe.js",
     "test": "node test/probe.test.js && node test/auth.test.js && node test/favicon.test.js && node test/api.test.js"
   },
   "dependencies": {
-    "express": "^5.1.0"
+    "express": "^5.3.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "postject": "^1.0.0-alpha.6"
   }
 }

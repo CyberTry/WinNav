@@ -1,0 +1,15 @@
+E:\Users\SagaciousTry\Documents\我的文档\我的项目\WinNav\launcher\WinNavLauncher\bin\Release\net8.0-windows\WinNavLauncher.exe
+E:\Users\SagaciousTry\Documents\我的文档\我的项目\WinNav\launcher\WinNavLauncher\bin\Release\net8.0-windows\WinNavLauncher.deps.json
+E:\Users\SagaciousTry\Documents\我的文档\我的项目\WinNav\launcher\WinNavLauncher\bin\Release\net8.0-windows\WinNavLauncher.runtimeconfig.json
+E:\Users\SagaciousTry\Documents\我的文档\我的项目\WinNav\launcher\WinNavLauncher\bin\Release\net8.0-windows\WinNavLauncher.dll
+E:\Users\SagaciousTry\Documents\我的文档\我的项目\WinNav\launcher\WinNavLauncher\bin\Release\net8.0-windows\WinNavLauncher.pdb
+E:\Users\SagaciousTry\Documents\我的文档\我的项目\WinNav\launcher\WinNavLauncher\obj\Release\net8.0-windows\WinNavLauncher.GeneratedMSBuildEditorConfig.editorconfig
+E:\Users\SagaciousTry\Documents\我的文档\我的项目\WinNav\launcher\WinNavLauncher\obj\Release\net8.0-windows\WinNavLauncher.AssemblyInfoInputs.cache
+E:\Users\SagaciousTry\Documents\我的文档\我的项目\WinNav\launcher\WinNavLauncher\obj\Release\net8.0-windows\WinNavLauncher.AssemblyInfo.cs
+E:\Users\SagaciousTry\Documents\我的文档\我的项目\WinNav\launcher\WinNavLauncher\obj\Release\net8.0-windows\WinNavLauncher.csproj.CoreCompileInputs.cache
+E:\Users\SagaciousTry\Documents\我的文档\我的项目\WinNav\launcher\WinNavLauncher\obj\Release\net8.0-windows\WinNavLauncher.sourcelink.json
+E:\Users\SagaciousTry\Documents\我的文档\我的项目\WinNav\launcher\WinNavLauncher\obj\Release\net8.0-windows\WinNavLauncher.dll
+E:\Users\SagaciousTry\Documents\我的文档\我的项目\WinNav\launcher\WinNavLauncher\obj\Release\net8.0-windows\refint\WinNavLauncher.dll
+E:\Users\SagaciousTry\Documents\我的文档\我的项目\WinNav\launcher\WinNavLauncher\obj\Release\net8.0-windows\WinNavLauncher.pdb
+E:\Users\SagaciousTry\Documents\我的文档\我的项目\WinNav\launcher\WinNavLauncher\obj\Release\net8.0-windows\WinNavLauncher.genruntimeconfig.cache
+E:\Users\SagaciousTry\Documents\我的文档\我的项目\WinNav\launcher\WinNavLauncher\obj\Release\net8.0-windows\ref\WinNavLauncher.dll

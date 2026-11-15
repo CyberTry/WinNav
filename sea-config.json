@@ -1,0 +1,7 @@
+{
+  "main": "dist/winnav.cjs",
+  "output": "dist/winnav.blob",
+  "disableExperimentalSEAWarning": true,
+  "useSnapshot": false,
+  "useCodeCache": false
+}

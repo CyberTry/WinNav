@@ -3,7 +3,19 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-const rootDir = path.resolve(__dirname, '..');
+/** SEA（单可执行文件）模式下以 exe 所在目录为项目根 */
+function detectSea() {
+  try {
+    return require('node:sea').isSea();
+  } catch {
+    // node:sea 在旧版 Node 上不存在，或运行于普通 node 进程
+    return false;
+  }
+}
+
+const rootDir = detectSea()
+  ? path.dirname(process.execPath)
+  : path.resolve(__dirname, '..');
 
 /** 读取 .env（KEY=VALUE），不覆盖已存在的环境变量 */
 function loadEnvFile(file) {
